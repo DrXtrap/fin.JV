@@ -804,6 +804,9 @@ git push
 12. **`background: none` (shorthand) reseta `background-size` e `background-position`** — usar `background-image: none` em vez disso quando quiser preservar size/position vindos de outras classes.
 13. **`background-size: 200% 100%` do skeleton-bg vazando pra foto carregada** — `.skeleton-bg.loaded` precisa explicitamente declarar `background-size: cover` pra voltar ao padrão do `.artista-capa`.
 14. **Dois `<h1>` na mesma página** — acessibilidade ruim e confusão pro Google. Hero pode ser `<h1>`, todas as outras seções `<h2>`. Especialmente fácil de errar quando cada seção tem "titulo" próprio.
+15. **Pin horizontal com conteúdo longo corta texto em mobile** — `.cases__viewport { height: 100vh; overflow: hidden }` força o card a caber em 100vh. Se o card tem texto longo + bullets + demo, o conteúdo é cortado. NÃO é solução tirar o pin em mobile (perde efeito visual). Solução: manter o pin, mas em mobile **encurtar agressivamente o conteúdo** — esconder textos secundários (`display: none` no `--secundario`), reduzir fonts, padding, esconder elementos pesados (gráficos), compactar grids. Cada card precisa caber em ~500-560px verticais em iPhone padrão.
+16. **Demo interativo em mobile precisa de compactação extrema** — KPIs em row de 3 (não 1 col), fontes 8-9px nos rótulos, gráficos `display: none`, botões grid 4col com texto pequeno. Em desktop pode ser elaborado, em mobile o demo tem ~330px de altura útil.
+17. **Cache do GitHub Pages no Safari iPhone é agressivo** — depois de push, o iPhone pode segurar CSS antigo por 5+ minutos mesmo com pull-to-refresh. **Sempre testar em aba anônima (Privada)** ou no Safari Desktop pra confirmar se mudança aplicou. Não confiar em screenshot do iPhone normal.
 
 ---
 
@@ -913,25 +916,62 @@ Depois:
 - Reformular pra falar com empresas (ou criar perfil/site separado "GOAT Mídia & Negócios")
 - Domínio próprio via Registro.br
 
-### Site J Tech (COMPLETO — 12/05/2026, noite)
+### Site J Tech (COMPLETO — 12/05/2026, sessão tarde+noite)
 - ✅ Paleta definida: Preto + Dourado/Âmbar
 - ✅ Logotipo definido: chip processador vivo/respirando + "Jtech" pequeno
 - ✅ Headline definida: "TECNOLOGIA QUE TRABALHA POR VOCÊ."
 - ✅ Repo publicado: github.com/DrXtrap/jtech → `drxtrap.github.io/jtech`
-- ✅ 5 seções no ar: Hero, O Que Fazemos (pin horizontal), Como Funciona (timeline), Cases (pin horizontal), Contato
+- ✅ 5 seções no ar: Hero, O Que Fazemos (pin horizontal), Como Funciona (timeline scrub), Cases (pin horizontal), Contato
 - ✅ CTA WhatsApp grande dourado pro número `5516996214799` com mensagem pré-pronta
-- ✅ Scroll horizontal funcionando em desktop E iPhone — sem lag, com saída amortecida (buffer 70vh)
+- ✅ Scroll horizontal funcionando em desktop E iPhone — sem lag, com saída amortecida (buffer 70vh + pausa 0.5)
 - ✅ SEO completo: meta description, Open Graph, Twitter Card, JSON-LD LocalBusiness, sitemap.xml, robots.txt
 - ✅ PWA básico: manifest.webmanifest, favicon.svg (chip), og-image.svg (preview WhatsApp)
 - ✅ 404.html estilizada com chip e botão de volta
 - ✅ Header reativo (compacta ao scrollar) + link ativo no menu por seção
 - ✅ Botão voltar-ao-topo flutuante dourado
-- ✅ Performance mobile: partículas reduzidas, GPU layer, engrenagens pausam fora da viewport
-- ⏳ Preencher cases reais quando começar a fechar contratos (Vilu, Shinerai)
+- ✅ Performance mobile: partículas reduzidas (60→22), GPU layer, engrenagens pausam fora da viewport
+- ✅ Linguagem dos cards de Serviços mais punchy ("Seu WhatsApp atendendo cliente 24h sem você", "Leads chegando enquanto você dorme")
+- ✅ Timeline "Como funciona" evoluiu pra ScrollTrigger com scrub (linha dourada desenha conforme rola, marcos acendem)
+- ✅ Cases reescritos: 5 cards em ordem (Sites · Sistemas · Agentes IA · Automações · Prospector caso meta) com textos comerciais longos engrandecedores
+- ✅ Demo interativo no card "Sistemas": mini-painel SaaS com relógio live, 3 KPIs com variação verde, gráfico de barras SVG dos últimos 7 dias, 4 botões de ação, status bar com bolinha verde pulsante, toast notification verde flutuante. Ações clicáveis: Relatório/Cliente/Email/Sincronizar (essa última recalcula altura das barras do gráfico)
+- ⏳ Preencher cases reais quando começar a fechar contratos
 - ⏳ Domínio próprio (`.com.br`) quando começar a fechar contratos
-- ⏳ Timeline "Como funciona" usa IntersectionObserver — pode evoluir pra ScrollTrigger com scrub pra "desenhar" a linha conforme rola
-- ⏳ Linguagem dos cards pode ficar mais punchy (focar resultado, não feature)
 - ⏳ Analytics (Plausible/GA4) quando começar a investir em tráfego
+
+**ESTRUTURA DOS CARDS DE CASES (5 cards horizontal):**
+
+```
+01 · Sites & Landing Pages — Sua cara online importa
+   Texto longo: "vendedor mais barato e mais constante, trabalha 24h"
+   Bullets: landing/institucional/e-commerce/SEO
+   Stack: HTML · CSS · JS · GSAP
+
+02 · Sistemas sob medida — Sistemas que pensam por você
+   Texto curto + DEMO INTERATIVO + texto curto + stack
+   Stack: Node · React · APIs · DB
+
+03 · Agentes de IA — Funcionários digitais que não dormem
+   Texto longo: "alguém atendendo seu WhatsApp 24h, sem dia de folga"
+   Bullets: WhatsApp/qualificação/agendamento/FAQ/treinado
+   Stack: Claude · OpenAI · Evolution · n8n
+
+04 · Automações — Tarefa repetitiva nunca mais
+   Texto longo: "cada minuto manual é minuto que não tá vendendo"
+   Bullets: email/planilhas/relatórios/integração/n8n
+   Stack: n8n · Zapier · Make · APIs
+
+05 · Caso meta · Jtech — Como a Jtech achou seus primeiros clientes (DESTAQUE em dourado)
+   Texto: o meta-case do prospector
+   Bullets: busca/qualificação/mensagem/disparo/dossiê
+   Stack: Python · Anthropic · Google Places · Evolution API
+```
+
+**REGRA DE MOBILE NOS CARDS:** Cada card tem MUITO conteúdo (textos longos, bullets, stack, demo). Pra caber em 100vh do iPhone com pin horizontal ativo, em mobile:
+- `.case-card__resumo--secundario { display: none }` — esconde o texto secundário (mantém só o primeiro parágrafo)
+- Fonts reduzidas (título 22-30px, resumo 13px, bullets 12px)
+- Padding 24px 22px (em vez de 56px 48px)
+- Demo: gráfico `display: none`, KPIs grid 3 col com fontes 8-16px, botões grid 4 col compactos
+- Toda compactação está no `@media (max-width: 768px)` do style.css
 
 ### J Tech (produto)
 - Desbloquear Google Places (cartão ou alternativa)
