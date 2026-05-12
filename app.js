@@ -1,6 +1,6 @@
 /**
- * app.js — Fin.JV v4
- * Lógica completa baseada no Fin.JV original, com multi-usuário e roles.
+ * app.js — Fin.JV
+ * Dados salvos no Firestore (Firebase) — sincroniza entre todos os dispositivos.
  */
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -20,11 +20,7 @@ const fmtMes  = m  => {
   return `${ns[+mo - 1]}/${y}`;
 };
 
-// ── Storage por usuário ───────────────────────────────────────────────────────
-
-function dataKey() {
-  return `finjv_data_${AUTH.getUsername()}`;
-}
+// ── Firestore — Persistência na nuvem ────────────────────────────────────────
 
 const DEFAULT_DATA = () => ({
   receitas:   [],
@@ -36,36 +32,52 @@ const DEFAULT_DATA = () => ({
   roleta:     []
 });
 
-function ld() {
-  try {
-    const raw = localStorage.getItem(dataKey());
-    return raw ? { ...DEFAULT_DATA(), ...JSON.parse(raw) } : DEFAULT_DATA();
-  } catch { return DEFAULT_DATA(); }
+function userRef() {
+  const uid = AUTH.getUID();
+  return uid ? _db.collection('userData').doc(uid) : null;
 }
 
-function sv(data) {
-  try { localStorage.setItem(dataKey(), JSON.stringify(data)); } catch {}
+async function loadFromCloud() {
+  const ref = userRef();
+  if (!ref) return DEFAULT_DATA();
+  try {
+    const snap = await ref.get();
+    return snap.exists ? { ...DEFAULT_DATA(), ...snap.data() } : DEFAULT_DATA();
+  } catch (err) {
+    console.error('Erro ao carregar dados:', err);
+    return DEFAULT_DATA();
+  }
+}
+
+function save() {
+  const ref = userRef();
+  if (!ref) return;
+  ref.set(D).catch(err => console.error('Erro ao salvar:', err));
 }
 
 // ── Estado global ────────────────────────────────────────────────────────────
 
 let D = DEFAULT_DATA();
+let _registering = false; // evita auto-login durante cadastro
 
 // ── Inicialização ─────────────────────────────────────────────────────────────
 
 window.addEventListener('load', () => {
-  if (AUTH.isAuthenticated()) {
-    initApp();
-  } else {
-    showLogin();
-  }
+  AUTH.onAuthChange(async (user) => {
+    if (user && !_registering) {
+      await initApp();
+    } else if (!user) {
+      showLogin();
+    }
+  });
 });
 
-function initApp() {
+async function initApp() {
   document.getElementById('screen-auth').style.display = 'none';
   document.getElementById('screen-app').style.display  = 'block';
 
-  D = ld();
+  // Carrega dados da nuvem
+  D = await loadFromCloud();
 
   // Chip do usuário
   document.getElementById('user-chip').textContent = AUTH.getUsername();
@@ -73,6 +85,8 @@ function initApp() {
   // Mostrar Roleta só para admin
   if (AUTH.isAdmin()) {
     document.getElementById('nav-roleta').style.display = 'flex';
+  } else {
+    document.getElementById('nav-roleta').style.display = 'none';
   }
 
   // Preencher nome do usuário no campo Pessoa das Receitas
@@ -114,11 +128,10 @@ async function handleLogin() {
   if (!u || !p) { errEl.textContent = 'Preencha usuário e senha.'; return; }
 
   const res = await AUTH.login(u, p);
-  if (res.ok) {
-    initApp();
-  } else {
+  if (!res.ok) {
     errEl.textContent = res.error;
   }
+  // Se ok: onAuthChange dispara → initApp()
 }
 
 async function handleRegister() {
@@ -127,29 +140,32 @@ async function handleRegister() {
   const errEl = document.getElementById('reg-error');
   errEl.textContent = '';
 
+  _registering = true;
   const res = await AUTH.register(u, p);
+
   if (res.ok) {
-    errEl.style.color = '#1b5e20';
-    errEl.textContent = 'Conta criada com sucesso! Faça o login.';
-    setTimeout(() => {
-      errEl.style.color = '';
-      errEl.textContent = '';
+    errEl.style.color = 'var(--green)';
+    errEl.textContent = 'Conta criada com sucesso!';
+    setTimeout(async () => {
+      await AUTH.logout();  // desloga o auto-login do Firebase
+      _registering = false;
       showLogin();
       document.getElementById('login-user').value = u;
-    }, 1800);
+      errEl.style.color   = '';
+      errEl.textContent   = '';
+    }, 1500);
   } else {
+    _registering = false;
     errEl.textContent = res.error;
   }
 }
 
-function handleLogout() {
-  AUTH.logout();
+async function handleLogout() {
   D = DEFAULT_DATA();
-  document.getElementById('screen-app').style.display  = 'none';
-  document.getElementById('screen-auth').style.display = 'flex';
-  showLogin();
   document.getElementById('login-user').value = '';
   document.getElementById('login-pass').value = '';
+  await AUTH.logout();
+  // onAuthChange dispara → showLogin()
 }
 
 // ── Navegação ─────────────────────────────────────────────────────────────────
@@ -308,7 +324,7 @@ function renderFixas() {
 function toggleFixa(fid, m, val) {
   if (!D.fixasPagas[m]) D.fixasPagas[m] = {};
   D.fixasPagas[m][fid] = val;
-  sv(D);
+  save();
   renderFixas();
   renderDash();
 }
@@ -319,7 +335,7 @@ function addFixa() {
   if (!n || isNaN(v) || v <= 0) return;
 
   D.fixas.push({ id: Date.now().toString(), nome: n, val: v });
-  sv(D);
+  save();
   document.getElementById('fix-nome').value = '';
   document.getElementById('fix-val').value  = '';
   renderFixas();
@@ -329,7 +345,7 @@ function addFixa() {
 function delFixa(id) {
   if (!confirm('Remover esta conta fixa?')) return;
   D.fixas = D.fixas.filter(f => f.id !== id);
-  sv(D);
+  save();
   renderFixas();
   renderDash();
 }
@@ -385,7 +401,7 @@ function addReceita() {
   if (!d || isNaN(v) || v <= 0 || !dt) return;
 
   D.receitas.push({ id: Date.now().toString(), desc: d, val: v, pessoa: p, cat: c, date: dt });
-  sv(D);
+  save();
   document.getElementById('rec-desc').value = '';
   document.getElementById('rec-val').value  = '';
   renderReceitas();
@@ -396,7 +412,7 @@ function addReceita() {
 function delRec(id) {
   if (!confirm('Excluir esta receita?')) return;
   D.receitas = D.receitas.filter(t => t.id !== id);
-  sv(D);
+  save();
   renderReceitas();
   renderDash();
 }
@@ -437,7 +453,7 @@ function addVar() {
   if (!d || isNaN(v) || v <= 0 || !dt) return;
 
   D.variaveis.push({ id: Date.now().toString(), desc: d, val: v, cat: c, date: dt });
-  sv(D);
+  save();
   document.getElementById('var-desc').value = '';
   document.getElementById('var-val').value  = '';
   renderVarList();
@@ -448,7 +464,7 @@ function addVar() {
 function delVar(id) {
   if (!confirm('Excluir este gasto?')) return;
   D.variaveis = D.variaveis.filter(t => t.id !== id);
-  sv(D);
+  save();
   renderVarList();
   renderDash();
 }
@@ -489,7 +505,7 @@ function addPontual() {
   if (!d || isNaN(mn) || mn <= 0) return;
 
   D.pontuais.push({ id: Date.now().toString(), desc: d, valMin: mn, valMax: mx, status: st });
-  sv(D);
+  save();
   document.getElementById('pont-desc').value    = '';
   document.getElementById('pont-val-min').value = '';
   document.getElementById('pont-val-max').value = '';
@@ -500,14 +516,14 @@ function addPontual() {
 function togglePontual(id) {
   const p = D.pontuais.find(p => p.id === id);
   if (p) p.status = p.status === 'pago' ? 'pendente' : 'pago';
-  sv(D);
+  save();
   renderPontuais();
 }
 
 function delPontual(id) {
   if (!confirm('Remover este item?')) return;
   D.pontuais = D.pontuais.filter(p => p.id !== id);
-  sv(D);
+  save();
   renderPontuais();
 }
 
@@ -546,7 +562,7 @@ function addGoal() {
   if (!n || isNaN(t) || t <= 0) return;
 
   D.metas.push({ id: Date.now().toString(), name: n, total: t, saved: s, date: d });
-  sv(D);
+  save();
   document.getElementById('goal-name').value  = '';
   document.getElementById('goal-total').value = '';
   document.getElementById('goal-saved').value = '';
@@ -557,7 +573,7 @@ function addGoal() {
 function delGoal(id) {
   if (!confirm('Remover esta meta?')) return;
   D.metas = D.metas.filter(g => g.id !== id);
-  sv(D);
+  save();
   renderGoals();
 }
 
@@ -623,7 +639,7 @@ function addRoleta() {
   if (!d) return;
 
   D.roleta.push({ id: Date.now().toString(), date: d, entrada: en, saida: sa, meta: mt, obs: ob });
-  sv(D);
+  save();
   document.getElementById('rol-entrada').value = '';
   document.getElementById('rol-saida').value   = '';
   document.getElementById('rol-obs').value     = '';
@@ -634,7 +650,7 @@ function addRoleta() {
 function delRol(id) {
   if (!confirm('Excluir esta sessão?')) return;
   D.roleta = D.roleta.filter(r => r.id !== id);
-  sv(D);
+  save();
   renderRoleta();
 }
 

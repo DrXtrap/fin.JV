@@ -1,79 +1,84 @@
 /**
- * auth.js — Autenticação multi-usuário com localStorage
+ * auth.js — Firebase Authentication para Fin.JV
+ * Login real, contas persistentes na nuvem.
  */
 
+const firebaseConfig = {
+  apiKey:            "AIzaSyCJEn8V1N83_ucbGAiy2lbx6trcdQLYRSI",
+  authDomain:        "finjv-e5a91.firebaseapp.com",
+  projectId:         "finjv-e5a91",
+  storageBucket:     "finjv-e5a91.firebasestorage.app",
+  messagingSenderId: "37968334502",
+  appId:             "1:37968334502:web:d720afab7c6af968816e67"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const _auth = firebase.auth();
+const _db   = firebase.firestore();
+
 const AUTH = (() => {
-  const USERS_KEY    = 'finjv_users';
-  const SESSION_KEY  = 'finjv_session';
-  const SECRET       = 'finjv-secret-2025';
-  const ADMIN_USER   = 'JV';
-  const ADMIN_PASS   = 'Khalifa@127548';
+  const ADMIN_USER = 'JV';
+  const ADMIN_PASS = 'Khalifa@127548';
 
-  async function hashPwd(password) {
-    const enc  = new TextEncoder();
-    const data = enc.encode(password + SECRET);
-    const buf  = await crypto.subtle.digest('SHA-256', data);
-    return Array.from(new Uint8Array(buf))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-
-  function getUsers() {
-    try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }
-    catch { return []; }
-  }
-
-  function saveUsers(list) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(list));
-  }
-
-  function getSession() {
-    try { return JSON.parse(localStorage.getItem(SESSION_KEY)); }
-    catch { return null; }
+  // Converte nome de usuário em e-mail interno (invisível pro usuário)
+  function toEmail(username) {
+    return `${username.toLowerCase()}@finjv.app`;
   }
 
   return {
-    isAuthenticated() { return !!getSession(); },
-    getUser()        { return getSession(); },
-    isAdmin()        { return getSession()?.role === 'admin'; },
-    getUsername()    { return getSession()?.username || ''; },
+    isAdmin()     { return _auth.currentUser?.displayName === ADMIN_USER; },
+    getUsername() { return _auth.currentUser?.displayName || ''; },
+    getUID()      { return _auth.currentUser?.uid || null; },
 
     async register(username, password) {
       username = username.trim();
+
       if (!username || username.length < 2)
         return { ok: false, error: 'O usuário precisa ter pelo menos 2 caracteres.' };
       if (!password || password.length < 6)
         return { ok: false, error: 'A senha precisa ter pelo menos 6 caracteres.' };
 
-      const users = getUsers();
-      if (users.find(u => u.username.toLowerCase() === username.toLowerCase()))
-        return { ok: false, error: 'Este nome de usuário já está em uso.' };
+      // Proteção: só o JV real pode criar a conta admin
+      if (username === ADMIN_USER && password !== ADMIN_PASS)
+        return { ok: false, error: 'Credenciais inválidas para este usuário.' };
 
-      const h    = await hashPwd(password);
-      const role = (username === ADMIN_USER && password === ADMIN_PASS) ? 'admin' : 'user';
-      users.push({ username, hash: h, role });
-      saveUsers(users);
-      return { ok: true };
+      try {
+        const cred = await _auth.createUserWithEmailAndPassword(toEmail(username), password);
+        await cred.user.updateProfile({ displayName: username });
+        await _db.collection('userProfiles').doc(cred.user.uid).set({
+          username,
+          role: username === ADMIN_USER ? 'admin' : 'user',
+          criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        return { ok: true };
+      } catch (err) {
+        if (err.code === 'auth/email-already-in-use')
+          return { ok: false, error: 'Este nome de usuário já está em uso.' };
+        return { ok: false, error: 'Erro ao criar conta. Tente novamente.' };
+      }
     },
 
     async login(username, password) {
       username = username.trim();
-      const users = getUsers();
-      const user  = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-      if (!user) return { ok: false, error: 'Usuário não encontrado.' };
-
-      const h = await hashPwd(password);
-      if (user.hash !== h) return { ok: false, error: 'Senha incorreta.' };
-
-      localStorage.setItem(SESSION_KEY, JSON.stringify({
-        username: user.username,
-        role: user.role
-      }));
-      return { ok: true };
+      try {
+        await _auth.signInWithEmailAndPassword(toEmail(username), password);
+        return { ok: true };
+      } catch (err) {
+        if (['auth/user-not-found', 'auth/invalid-credential', 'auth/invalid-email'].includes(err.code))
+          return { ok: false, error: 'Usuário não encontrado.' };
+        if (err.code === 'auth/wrong-password')
+          return { ok: false, error: 'Senha incorreta.' };
+        return { ok: false, error: 'Erro ao fazer login. Tente novamente.' };
+      }
     },
 
-    logout() {
-      localStorage.removeItem(SESSION_KEY);
+    async logout() {
+      await _auth.signOut();
+    },
+
+    onAuthChange(callback) {
+      return _auth.onAuthStateChanged(callback);
     }
   };
 })();
