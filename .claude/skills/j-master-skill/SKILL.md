@@ -190,7 +190,7 @@ YouTube: @J_tv016
 
 ### SITE J TECH — VITRINE TÉCNICA
 
-**Status (12/05/2026):** **NO AR em `drxtrap.github.io/jtech`.** 5 seções implementadas. Scroll horizontal "O QUE FAZEMOS" funcionando em desktop E mobile (iPhone) após série de ajustes de performance.
+**Status (12/05/2026 — sessão noite):** **NO AR em `drxtrap.github.io/jtech` — site completo.** Todas as 5 seções planejadas no ar + extras (favicon, og-image, 404 estilizada, sitemap, JSON-LD, manifest PWA, header reativo, menu com link ativo, botão voltar-topo). Scroll horizontal funcionando em desktop E iPhone com **saída amortecida** (buffer 70vh + pausa 0.5 na timeline). Último commit: `f8192d7`.
 
 **Repositório:** https://github.com/DrXtrap/jtech (J criou em 12/05, tudo minúsculo pra evitar problema no Pages). Branch principal: `main`.
 
@@ -324,6 +324,53 @@ const ehMobile = window.matchMedia('(max-width: 768px)').matches;
 **Cards em mobile:** `flex: 0 0 82vw; max-width: 380px; height: clamp(440px, 70vh, 560px)` — mostra 1 card por vez com peek do próximo.
 
 **Trade-off aceito:** mobile não tem suavidade Lenis no scroll geral (só o momentum nativo do iOS). J aceitou em troca do pin horizontal funcionando.
+
+**TRANSIÇÃO SUAVE NA SAÍDA DO PIN (decidido 12/05/2026, sessão noite):**
+
+Sem buffer, quando a pista chega no fim, o pin solta imediatamente e a próxima seção aparece brusca. Solução que J aprovou:
+
+```js
+const buffer = () => window.innerHeight * 0.7;  // 70vh extras
+
+gsap.timeline({
+    scrollTrigger: {
+        start: 'top top',
+        end: () => `+=${distancia() + buffer()}`,
+        scrub: ehMobile ? true : 1,
+        pin: true,
+    },
+})
+.to(pista, { x: () => -distancia(), ease: 'none' }, 0)
+.to({}, { duration: 0.5 });  // pausa relativa no fim
+```
+
+- Buffer absoluto: **70vh** (testado 35vh → ainda brusco; 70vh → perfeito pro J)
+- Pausa relativa no fim da timeline: **0.5** (de 0.18 inicial — aumenta o "peso" da pausa final do scrub)
+- Aplicado em AMBAS as seções pinned (Serviços e Cases)
+
+**OTIMIZAÇÕES DE PERFORMANCE MOBILE:**
+
+1. **Partículas reduzidas** via matchMedia:
+```js
+const ehMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
+const CONFIG = {
+    quantidade: ehMobileViewport() ? 22 : 60,
+    distanciaConexao: ehMobileViewport() ? 90 : 140,
+};
+```
+Conexões são O(n²) — 60²=3600 viraram 484 cálculos/frame em mobile.
+
+2. **GPU layer nas pistas horizontais:**
+```css
+.servicos__pista, .cases__pista {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+```
+Força o compositor a separar em camada GPU própria, evita repaint.
+
+3. **Pausar animações infinitas via IntersectionObserver:** engrenagens girando, partículas etc. Quando saem da viewport → `tween.pause()`. Quando voltam → `tween.play()`. Economia significativa de GPU em mobile.
 
 **Princípios de design (definidos pelo J):**
 - Não pode ser comum. Tem que impressionar visualmente
@@ -752,6 +799,11 @@ git push
 7. **Espaço no nome do arquivo** (`mano feh.png`) — usar nome exato no código
 8. **Lenis + ScrollTrigger pin lagando no iPhone** — Lenis interceptando touch em iOS adiciona latência ao pin. Solução: **desligar Lenis em dispositivos touch** (`matchMedia('(hover: none) and (pointer: coarse)')`) e usar `scrub: true` no ScrollTrigger pra mobile. Veja seção "Setup técnico do scroll" em SITE J TECH.
 9. **Pin do ScrollTrigger desativado em mobile por largura** — não bloquear o pin por `window.innerWidth < 769`; J quer o efeito em iPhone também. Trabalhar o lag separadamente.
+10. **Saída brusca do pin horizontal** — quando a pista chega no fim, sem buffer o pin solta na mesma hora e a próxima seção aparece de supetão. Solução: adicionar `+= window.innerHeight * 0.7` ao `end` do ScrollTrigger e uma pausa `.to({}, { duration: 0.5 })` no fim da timeline. Veja "Transição suave na saída do pin" em SITE J TECH.
+11. **Autocorretor do iPhone quebrando CSS via GitHub web** — J editou `background: none` pelo iPhone e o autocorretor meteu `"por"` no meio (`none; por background-image: none;`). Resultado: regra inválida, ignorada, fotos esticadas. SEMPRE confirmar que mudanças via mobile não foram autocorrigidas (especialmente em CSS curto).
+12. **`background: none` (shorthand) reseta `background-size` e `background-position`** — usar `background-image: none` em vez disso quando quiser preservar size/position vindos de outras classes.
+13. **`background-size: 200% 100%` do skeleton-bg vazando pra foto carregada** — `.skeleton-bg.loaded` precisa explicitamente declarar `background-size: cover` pra voltar ao padrão do `.artista-capa`.
+14. **Dois `<h1>` na mesma página** — acessibilidade ruim e confusão pro Google. Hero pode ser `<h1>`, todas as outras seções `<h2>`. Especialmente fácil de errar quando cada seção tem "titulo" próprio.
 
 ---
 
@@ -861,17 +913,25 @@ Depois:
 - Reformular pra falar com empresas (ou criar perfil/site separado "GOAT Mídia & Negócios")
 - Domínio próprio via Registro.br
 
-### Site J Tech (NO AR — 12/05/2026)
+### Site J Tech (COMPLETO — 12/05/2026, noite)
 - ✅ Paleta definida: Preto + Dourado/Âmbar
 - ✅ Logotipo definido: chip processador vivo/respirando + "Jtech" pequeno
 - ✅ Headline definida: "TECNOLOGIA QUE TRABALHA POR VOCÊ."
-- ✅ Repo criado e publicado: github.com/DrXtrap/jtech → `drxtrap.github.io/jtech`
-- ✅ Hero, "O que fazemos" (scroll horizontal), "Como funciona", Cases, CTA — todas implementadas
-- ✅ Scroll horizontal funcionando em desktop E iPhone (após testes de lag, Lenis desligado em touch)
-- ⏳ Preencher cases reais quando começar a fechar contratos (hoje tem o meta-case do prospector + placeholders)
-- ⏳ Integração WhatsApp no CTA (link `wa.me` ou agendamento)
+- ✅ Repo publicado: github.com/DrXtrap/jtech → `drxtrap.github.io/jtech`
+- ✅ 5 seções no ar: Hero, O Que Fazemos (pin horizontal), Como Funciona (timeline), Cases (pin horizontal), Contato
+- ✅ CTA WhatsApp grande dourado pro número `5516996214799` com mensagem pré-pronta
+- ✅ Scroll horizontal funcionando em desktop E iPhone — sem lag, com saída amortecida (buffer 70vh)
+- ✅ SEO completo: meta description, Open Graph, Twitter Card, JSON-LD LocalBusiness, sitemap.xml, robots.txt
+- ✅ PWA básico: manifest.webmanifest, favicon.svg (chip), og-image.svg (preview WhatsApp)
+- ✅ 404.html estilizada com chip e botão de volta
+- ✅ Header reativo (compacta ao scrollar) + link ativo no menu por seção
+- ✅ Botão voltar-ao-topo flutuante dourado
+- ✅ Performance mobile: partículas reduzidas, GPU layer, engrenagens pausam fora da viewport
+- ⏳ Preencher cases reais quando começar a fechar contratos (Vilu, Shinerai)
 - ⏳ Domínio próprio (`.com.br`) quando começar a fechar contratos
-- ⏳ Re-comprimir qualquer asset pesado pra WebP via squoosh
+- ⏳ Timeline "Como funciona" usa IntersectionObserver — pode evoluir pra ScrollTrigger com scrub pra "desenhar" a linha conforme rola
+- ⏳ Linguagem dos cards pode ficar mais punchy (focar resultado, não feature)
+- ⏳ Analytics (Plausible/GA4) quando começar a investir em tráfego
 
 ### J Tech (produto)
 - Desbloquear Google Places (cartão ou alternativa)
