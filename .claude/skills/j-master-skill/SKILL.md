@@ -190,9 +190,9 @@ YouTube: @J_tv016
 
 ### SITE J TECH — VITRINE TÉCNICA
 
-**Status (12/05/2026):** Hero em construção. Decisões fechadas, código criado localmente em `/home/user/jtech/`, aguardando J revisar pra autorizar primeiro push.
+**Status (12/05/2026):** **NO AR em `drxtrap.github.io/jtech`.** 5 seções implementadas. Scroll horizontal "O QUE FAZEMOS" funcionando em desktop E mobile (iPhone) após série de ajustes de performance.
 
-**Repositório:** https://github.com/DrXtrap/jtech (J criou em 12/05, tudo minúsculo pra evitar problema no Pages)
+**Repositório:** https://github.com/DrXtrap/jtech (J criou em 12/05, tudo minúsculo pra evitar problema no Pages). Branch principal: `main`.
 
 **Por que é crítico:** O site J Tech é a própria demonstração do produto. Se o site for comum, o cliente pensa "se eles não conseguem fazer pra eles, vão fazer pra mim?". O site vende a tecnologia em si.
 
@@ -298,6 +298,32 @@ jtech/
 ├── script.js       ← IIFE, Lenis + sistema de partículas em Canvas
 └── imagens/        (vazio por enquanto, hero não usa imagem)
 ```
+
+**SETUP TÉCNICO DO SCROLL (decidido após testes em iPhone, 12/05/2026):**
+
+Configuração final que funciona em **desktop E iPhone** sem lag no pin horizontal:
+
+| Plataforma | Lenis | ScrollTrigger `scrub` | Resultado |
+|---|---|---|---|
+| Desktop (mouse) | **ON** com `duration: 1.2` | `1` (inércia 1s) | Scroll geral buttery + pin com inércia suave |
+| Touch (iPhone/iPad) | **OFF** (scroll nativo iOS) | `true` (instantâneo) | Pin liso, scroll geral usa momentum nativo do iOS |
+
+**Por que Lenis OFF em touch:** Lenis interceptando touch em iOS Safari adiciona latência ao pin do ScrollTrigger — mesmo com `syncTouchLerp: 1` (sem smoothing) o pin lagava. Testamos `syncTouch` ON com vários valores de lerp (0.085, 0.15, 1) e scrub (1, 0.3, true) — todos lagavam. Só desligando Lenis no touch o pin ficou liso.
+
+**Detector touch:**
+```js
+const ehDispositivoToque = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+```
+
+**Detector pra scrub diferente (no ScrollTrigger):**
+```js
+const ehMobile = window.matchMedia('(max-width: 768px)').matches;
+// scrub: ehMobile ? true : 1
+```
+
+**Cards em mobile:** `flex: 0 0 82vw; max-width: 380px; height: clamp(440px, 70vh, 560px)` — mostra 1 card por vez com peek do próximo.
+
+**Trade-off aceito:** mobile não tem suavidade Lenis no scroll geral (só o momentum nativo do iOS). J aceitou em troca do pin horizontal funcionando.
 
 **Princípios de design (definidos pelo J):**
 - Não pode ser comum. Tem que impressionar visualmente
@@ -724,6 +750,25 @@ git push
 5. **Scroll sobre iframe YouTube** — iframe captura mouse. Usar `requestAnimationFrame` com animação manual
 6. **Pastas duplicadas no GitHub** (`Artistas` e `artistas`) — apagar as com maiúscula
 7. **Espaço no nome do arquivo** (`mano feh.png`) — usar nome exato no código
+8. **Lenis + ScrollTrigger pin lagando no iPhone** — Lenis interceptando touch em iOS adiciona latência ao pin. Solução: **desligar Lenis em dispositivos touch** (`matchMedia('(hover: none) and (pointer: coarse)')`) e usar `scrub: true` no ScrollTrigger pra mobile. Veja seção "Setup técnico do scroll" em SITE J TECH.
+9. **Pin do ScrollTrigger desativado em mobile por largura** — não bloquear o pin por `window.innerWidth < 769`; J quer o efeito em iPhone também. Trabalhar o lag separadamente.
+
+---
+
+## GIT VIA PAT TEMPORÁRIO (FLUXO QUE J USA)
+
+J não confia tokens de longa duração no ambiente. Fluxo padrão dele pra qualquer push:
+
+1. J cria PAT em `github.com/settings/tokens/new`
+   - Nota descritiva (ex: `jtech-fix-3`)
+   - Expira: 7 dias (ou menos)
+   - Scope: `public_repo` apenas
+2. J cola o token na conversa
+3. Eu uso direto na URL do push: `git push "https://DrXtrap:TOKEN@github.com/DrXtrap/REPO.git" main`
+   - **Nunca salvar em config** (`credential.helper=` no comando pra evitar)
+4. J revoga imediatamente em `github.com/settings/tokens`
+
+Sempre lembrar J de revogar após cada push. Não pedir token "pra deixar configurado" — só o necessário pra cada operação.
 
 ---
 
@@ -816,18 +861,17 @@ Depois:
 - Reformular pra falar com empresas (ou criar perfil/site separado "GOAT Mídia & Negócios")
 - Domínio próprio via Registro.br
 
-### Site J Tech (em construção — 12/05/2026)
+### Site J Tech (NO AR — 12/05/2026)
 - ✅ Paleta definida: Preto + Dourado/Âmbar
 - ✅ Logotipo definido: chip processador vivo/respirando + "Jtech" pequeno
 - ✅ Headline definida: "TECNOLOGIA QUE TRABALHA POR VOCÊ."
-- ✅ Repo criado: github.com/DrXtrap/jtech
-- ✅ Hero codada localmente (index.html, style.css, script.js)
-- ⏳ Aguardando J revisar a hero e autorizar primeiro push
-- ⏳ Próximo: scroll horizontal "O que fazemos" com GSAP/ScrollTrigger
-- ⏳ "Como funciona" com elementos montando ao scroll
-- ⏳ Cases (incluindo o meta-case do prospector)
-- ⏳ CTA de diagnóstico gratuito + integração WhatsApp
-- ⏳ Subir em GitHub Pages (settings após primeiro push)
+- ✅ Repo criado e publicado: github.com/DrXtrap/jtech → `drxtrap.github.io/jtech`
+- ✅ Hero, "O que fazemos" (scroll horizontal), "Como funciona", Cases, CTA — todas implementadas
+- ✅ Scroll horizontal funcionando em desktop E iPhone (após testes de lag, Lenis desligado em touch)
+- ⏳ Preencher cases reais quando começar a fechar contratos (hoje tem o meta-case do prospector + placeholders)
+- ⏳ Integração WhatsApp no CTA (link `wa.me` ou agendamento)
+- ⏳ Domínio próprio (`.com.br`) quando começar a fechar contratos
+- ⏳ Re-comprimir qualquer asset pesado pra WebP via squoosh
 
 ### J Tech (produto)
 - Desbloquear Google Places (cartão ou alternativa)
