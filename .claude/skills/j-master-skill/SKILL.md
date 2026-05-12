@@ -190,7 +190,9 @@ YouTube: @J_tv016
 
 ### SITE J TECH — VITRINE TÉCNICA
 
-**Status:** A construir (próximo grande projeto após lazy/skeleton dos sites GOAT e J).
+**Status (12/05/2026):** Hero em construção. Decisões fechadas, código criado localmente em `/home/user/jtech/`, aguardando J revisar pra autorizar primeiro push.
+
+**Repositório:** https://github.com/DrXtrap/jtech (J criou em 12/05, tudo minúsculo pra evitar problema no Pages)
 
 **Por que é crítico:** O site J Tech é a própria demonstração do produto. Se o site for comum, o cliente pensa "se eles não conseguem fazer pra eles, vão fazer pra mim?". O site vende a tecnologia em si.
 
@@ -220,10 +222,89 @@ YouTube: @J_tv016
 - "Prospecção automática trazendo leads enquanto você dorme"
 - "Agente de IA que agenda direto na sua agenda"
 
-**Decisões a tomar antes de codar:**
-1. Paleta: preto + neon (verde/azul/roxo) ou preto + dourado/laranja (premium/sério)?
-2. Logotipo: "J Tech", "JTECH" ou símbolo?
-3. Domínio: GitHub Pages provisório ou já comprar `.com.br`?
+**Decisões FECHADAS (12/05/2026):**
+
+1. **Paleta:** Preto + Dourado/Âmbar (dialoga com GOAT, mas projetos separados).
+   - Fundo: `#0a0a0a` / `#141414` (elevado)
+   - Dourado base: `#B48C50`
+   - Dourado claro: `#d4a766`
+   - Dourado escuro: `#8a6b3c`
+   - Cinza claro: `#c9c9c9`
+   - Cinza médio: `#888888`
+
+2. **Logo/Mascote:** **Chip de processador "Jtech"** (vista superior, com 4 pinos por lado), com **rostinho vivo/respirando** — 2 olhinhos brancos que piscam a cada ~6s, sorrisinho BEM leve (não cartoon, sem virar mascote infantil), LED dourado pulsando num canto, corpo respira (scale 1.00↔1.025, 4s). Embaixo aparece "Jtech" em texto pequeno. SVG inline puro pra animar via CSS.
+
+3. **Nome do produto/marca:** `Jtech` (J maiúsculo, "tech" minúsculo, sem espaço). Confirmado pelo J.
+
+4. **Tom de voz:** Rua-profissional. Direto sem ser corporativo, autêntico sem ser gritado/infoproduto.
+   - Headline hero: **"TECNOLOGIA QUE TRABALHA POR VOCÊ."** (Bebas Neue, branco)
+   - Subheadline: "Sites, sistemas e agentes de IA pra empresas que querem crescer sem complicar."
+   - CTA principal: "Diagnóstico gratuito"
+
+5. **Domínio:** GitHub Pages provisório (`drxtrap.github.io/jtech`). `.com.br` quando começar a fechar contratos.
+
+6. **Stack confirmada:**
+   - HTML/CSS/JS puro (sem framework)
+   - **Lenis** (CDN unpkg) — scroll suave premium
+   - **Canvas API** — sistema de partículas no hero
+   - **GSAP + ScrollTrigger** (CDN) — entra nas próximas seções pra scroll horizontal pinned e timeline
+   - **SVG inline** pro chip (animado via CSS)
+   - Fontes Google: Bebas Neue (títulos) + Inter (corpo)
+   - Tudo gratuito.
+
+**Estrutura visual confirmada — 5 seções:**
+
+```
+1. HERO (vertical)
+   - Chip mascote gigante centralizado (respira, pisca, LED pulsa)
+   - Headline + sub + CTA
+   - Fundo: grid blueprint dourado-fantasma + partículas em canvas
+   - Indicador "role pra ver" no rodapé
+
+2. "O QUE FAZEMOS" (SCROLL HORIZONTAL pinned com GSAP)
+   - Cards: Sites / Sistemas / Agentes IA / Automações
+   - Rolar pra baixo trava a seção e empurra cards horizontalmente
+
+3. "COMO FUNCIONA" (vertical, elementos surgindo ao scroll)
+   - Timeline: Diagnóstico → Proposta → Construção → Entrega
+   - Linha dourada se desenha conforme rola
+
+4. CASES (SCROLL HORIZONTAL pinned)
+   - Card meta inicial: "Como a J Tech achou seus primeiros clientes" (do prospector)
+   - Placeholders pros próximos (Vilu, Shinerai quando fechar)
+
+5. CTA FINAL (vertical)
+   - "Diagnóstico gratuito em 15min"
+   - Botão WhatsApp grande
+```
+
+**Sequência de entrada do hero (~1.6s via CSS animation):**
+
+| Tempo | Acontece |
+|-------|----------|
+| 0.2s | Header e grid blueprint fazem fade in |
+| 0.4s | Canvas de partículas começa a aparecer |
+| 0.6s | Chip materializa (scale 0.85→1.0 + fade) |
+| 1.0s | Headline sobe + aparece |
+| 1.2s | Subheadline aparece |
+| 1.4s | CTA aparece, chip começa a respirar |
+| 1.6s | Indicador de scroll aparece |
+
+**Arquitetura de arquivos (em `/home/user/jtech/`):**
+```
+jtech/
+├── index.html      ← estrutura semântica, SVG inline do chip
+├── style.css       ← tokens em :root, BEM-like, animações @keyframes
+├── script.js       ← IIFE, Lenis + sistema de partículas em Canvas
+└── imagens/        (vazio por enquanto, hero não usa imagem)
+```
+
+**Princípios de design (definidos pelo J):**
+- Não pode ser comum. Tem que impressionar visualmente
+- Scroll horizontal + vertical — não pode só ir pra baixo
+- Coisas mexendo — partículas, elementos animados, scroll-triggered
+- Demonstração de capacidade técnica — cliente que vê site comum não contrata
+- **MAS leve** — performático, sem travar máquina fraca
 
 ---
 
@@ -352,7 +433,7 @@ if __name__ == "__main__":
 | Site J Artista | Finalizado, perfeito, no ar — sem ajustes pendentes |
 | Compressão de fotos site J | Feito — de 5-8MB pra máx 3MB (recomendação futura: passar pra WebP no squoosh.app pra cair pra ~500KB) |
 | Lazy load + skeleton (sites J e GOAT) | Em construção HOJE. Aplicar em ambos pra preparar site GOAT pras fotos da sessão coletiva |
-| Site J Tech | **PRÓXIMO GRANDE PROJETO** — começa após lazy/skeleton. Tem que ser cinematográfico, scroll horizontal + vertical, demonstração da capacidade técnica |
+| Site J Tech | **EM CONSTRUÇÃO (12/05/2026)** — repo criado (github.com/DrXtrap/jtech), Hero codada localmente em `/home/user/jtech/`, aguardando aprovação do J pra primeiro push. Próximas: 4 seções restantes (scroll horizontal "O que fazemos", "Como funciona", Cases, CTA final) |
 | Sessão de fotos coletiva artistas | Domingo 17/05 — todos os artistas. Fotos vão pra seção "Fotografia" do GOAT (atualmente "Em breve") |
 | Música + clipe com Alex Gaita | J fez instrumental, Alex compôs e cantou na hora. Falta marcar dia de gravar |
 | Música + clipe com Jhoxye | Música pronta (J produziu tudo) + clipe gravado no mesmo dia. Em edição final |
@@ -439,6 +520,22 @@ if __name__ == "__main__":
 - @22goatstudio para artistas/cultura
 - Criar GOAT Mídia & Negócios separado pra empresas (públicos diferentes)
 - Diferencial vs. Máfia: transparência de preço
+
+---
+
+## FILOSOFIA DE CÓDIGO — CLEAN CODE
+
+J segue o livro **Clean Code (Robert C. Martin)**. Toda entrega de código tem que respeitar:
+
+- **Nomes significativos** — variáveis, funções e classes dizem o que fazem sem precisar de comentário. `criarParticula`, não `cp`. `largura`, não `w`.
+- **Funções pequenas com UMA responsabilidade** — se uma função faz duas coisas, separa em duas.
+- **Sem números mágicos** — qualquer valor "solto" no código (`50`, `0.6`, `140`) vira constante nomeada no topo (`CONFIG.distanciaConexao = 140`).
+- **DRY (Don't Repeat Yourself)** — se o mesmo trecho aparece duas vezes, extrai pra função/constante.
+- **Comentários só quando explicam POR QUÊ** — nunca o quê. Código bem nomeado dispensa "// soma A com B".
+- **Separação de concerns** — HTML estrutura, CSS estilo, JS comportamento. Sem inline styles, sem JS escrevendo CSS exceto quando necessário.
+- **HTML semântico + ARIA** — `<header>`, `<main>`, `<section>`, `<nav>`, `<button>`, `aria-label`, `aria-hidden`, etc.
+- **Sem dependência desnecessária** — se dá pra fazer com JS/CSS puro, não importa lib. Cada lib adicionada tem que justificar o peso.
+- **Tratamento de erro só onde importa** — não trata exceção que não pode acontecer.
 
 ---
 
@@ -654,6 +751,8 @@ git push
 12. **Entregar rápido** — ele não tem tempo sobrando
 13. **Explicar conceito antes do código** quando ensinando
 14. **Celebrar vitórias** — J evolui rápido, merece reconhecimento
+15. **NUNCA mexer no git sem permissão explícita** — não comita, não dá push, não cria branch, não cria pastas no remote sem J liberar. Pode codar localmente, pode propor mudanças, mas qualquer operação git destrutiva ou pública precisa de luz verde. Workflow padrão: **codo → mostro → J aprova → eu pusho**
+16. **Toda API/serviço usado tem que ser GRATUITO** — nada pago. Sem Stripe, sem Vercel pago, sem Cloudflare premium. Se precisar de pago, **avisa antes e justifica** — J decide.
 
 ---
 
@@ -717,15 +816,18 @@ Depois:
 - Reformular pra falar com empresas (ou criar perfil/site separado "GOAT Mídia & Negócios")
 - Domínio próprio via Registro.br
 
-### Site J Tech (a construir HOJE após lazy/skeleton)
-- Definir paleta (neon vs dourado)
-- Definir logotipo
-- Hero cinematográfico com fundo animado
-- Scroll horizontal "O que fazemos"
-- "Como funciona" com elementos montando ao scroll
-- Cases (incluindo o meta-case do prospector)
-- CTA de diagnóstico gratuito
-- Subir em GitHub Pages
+### Site J Tech (em construção — 12/05/2026)
+- ✅ Paleta definida: Preto + Dourado/Âmbar
+- ✅ Logotipo definido: chip processador vivo/respirando + "Jtech" pequeno
+- ✅ Headline definida: "TECNOLOGIA QUE TRABALHA POR VOCÊ."
+- ✅ Repo criado: github.com/DrXtrap/jtech
+- ✅ Hero codada localmente (index.html, style.css, script.js)
+- ⏳ Aguardando J revisar a hero e autorizar primeiro push
+- ⏳ Próximo: scroll horizontal "O que fazemos" com GSAP/ScrollTrigger
+- ⏳ "Como funciona" com elementos montando ao scroll
+- ⏳ Cases (incluindo o meta-case do prospector)
+- ⏳ CTA de diagnóstico gratuito + integração WhatsApp
+- ⏳ Subir em GitHub Pages (settings após primeiro push)
 
 ### J Tech (produto)
 - Desbloquear Google Places (cartão ou alternativa)
