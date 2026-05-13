@@ -808,6 +808,26 @@ git push
 16. **Demo interativo em mobile precisa de compactação extrema** — KPIs em row de 3 (não 1 col), fontes 8-9px nos rótulos, gráficos `display: none`, botões grid 4col com texto pequeno. Em desktop pode ser elaborado, em mobile o demo tem ~330px de altura útil.
 17. **Cache do GitHub Pages no Safari iPhone é agressivo** — depois de push, o iPhone pode segurar CSS antigo por 5+ minutos mesmo com pull-to-refresh. **Sempre testar em aba anônima (Privada)** ou no Safari Desktop pra confirmar se mudança aplicou. Não confiar em screenshot do iPhone normal.
 
+18. **`<script defer>` + `iniciar()` no `else` quebra silenciosamente** (descoberto 13/05/2026 no site J Tech) — quando os scripts Lenis/GSAP/ScrollTrigger e o `script.js` estão todos com `defer`, na hora que `script.js` roda o `document.readyState` já é `interactive`, então cai no `else iniciar()`. Em certas condições de rede, Lenis/GSAP ainda não foram avaliados, e os checks `typeof Lenis === 'undefined'` derrubam o scroll suave, o pin horizontal e a timeline silenciosamente. **Solução:** trocar o `else iniciar()` por `window.addEventListener('load', iniciar)` OU tirar `defer` e mover scripts pro fim do `<body>`. Isso é a causa raiz mais provável quando "o site parece igual mesmo depois de eu mexer no código".
+
+19. **`gsap.registerPlugin(ScrollTrigger)` dentro de uma função específica é frágil** — se essa função fizer `return` cedo (querySelector falhou, prefers-reduced-motion etc.), as outras funções que dependem de ScrollTrigger rodam sem plugin registrado. **Regra:** registrar plugins UMA vez no topo do `iniciar()`, fora de qualquer função feature-específica.
+
+20. **Pin horizontal sem `ScrollTrigger.refresh()` após fontes carregarem** — `pista.scrollWidth` é calculado imediato após DOMContentLoaded, mas se Bebas Neue ainda não baixou, os títulos dos cards medem errado, e a distância do pin fica congelada (`scrollWidth - innerWidth ≈ 0`). Resultado: scroll horizontal "não tem pra onde ir". **Solução:** `document.fonts.ready.then(() => ScrollTrigger.refresh())` no fim do iniciar.
+
+21. **Cards de pin horizontal com `clamp(320px, 32vw, 460px)` cabem todos na tela em monitor 1440p+** — 4 × 460 = 1840px < 1920px viewport. Pin não percorre nada. **Solução pragmática:** clamp mais generoso (`380px, 34vw, 540px`) + gap maior (40px) + padding lateral em vw (`0 10vw 64px`) — garante overflow em qualquer desktop até ~2560px.
+
+22. **Stacking context entre seção com pin (`position: fixed` via ScrollTrigger) e seção anterior com `z-index` em filhos** — Se a seção anterior (ex: `.processo`) tem filho com `z-index: 2` (ex: `.processo__marco`) e a seção seguinte (`.cases`) entra em pin sem stacking context próprio, os marcos da anterior aparecem POR CIMA do pin. **Solução:** dar `position: relative; z-index: N` na seção que pinna (`.cases`) — N maior que qualquer z-index dos filhos da anterior. Cuidado adicional: `box-shadow: 0 0 0 6px` + `0 0 32px` no marco vaza pra fora do `.processo`, então `isolation: isolate` no `.processo` também ajuda a conter.
+
+23. **`scroll-behavior: smooth` no CSS + Lenis ativo = pulo brusco em anchor links** — Lenis 1.x não intercepta links âncora automaticamente; o CSS `smooth` entra em conflito com o RAF do Lenis. **Solução:** remover `html { scroll-behavior: smooth }` quando Lenis estiver ativo OU adicionar handler que chama `lenis.scrollTo(target)` nos links `<a href="#...">`.
+
+24. **`setInterval` + `addEventListener('resize')` sem cleanup é leak garantido em SPA leve** — relógio do demo, resize do canvas de partículas, qualquer `setInterval`/`setTimeout` que não é limpo continua rodando mesmo fora da viewport. **Solução:** envolver em `IntersectionObserver` ou destruir explicitamente. Adicionar debounce 150ms em resize listeners.
+
+25. **`prefers-reduced-motion` no CSS NÃO desliga GSAP/Lenis/canvas particles** — usuário com acessibilidade ligada vê tudo animando porque só o CSS respeita. **Solução:** no JS, `const reduzir = matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduzir) return;` antes de iniciar Lenis, ScrollTrigger pin e o canvas de partículas.
+
+26. **Card demo gigante (~880px de altura) numa pista `align-items: stretch` puxa TODOS os outros cards pra essa altura** — em desktop, cards de cases com altura natural ~600px ficam estranhos (espaço vazio) porque o `--demo` força a pista. **Solução:** `max-height: 100%; overflow-y: auto` no card demo, ou esconder textos secundários nele.
+
+27. **`document.readyState === 'loading'` é a checagem ERRADA pra módulos que dependem de scripts externos** — só testa se o HTML acabou de parsear, não se os outros `<script>` já rodaram. Para scripts deferidos que dependem de bibliotecas externas, usar `window.addEventListener('load', ...)` que dispara depois de tudo (incluindo CSS/imagens, mas é mais seguro).
+
 ---
 
 ## GIT VIA PAT TEMPORÁRIO (FLUXO QUE J USA)
@@ -819,11 +839,15 @@ J não confia tokens de longa duração no ambiente. Fluxo padrão dele pra qual
    - Expira: 7 dias (ou menos)
    - Scope: `public_repo` apenas
 2. J cola o token na conversa
-3. Eu uso direto na URL do push: `git push "https://DrXtrap:TOKEN@github.com/DrXtrap/REPO.git" main`
-   - **Nunca salvar em config** (`credential.helper=` no comando pra evitar)
-4. J revoga imediatamente em `github.com/settings/tokens`
+3. Eu uso direto na URL do push (formato que FUNCIONOU em 13/05/2026):
+   `git push https://TOKEN@github.com/DrXtrap/REPO.git main`
+   - Não precisa do `DrXtrap:` antes do TOKEN — só o token sozinho como user.
+   - **Nunca salvar em config** (não criar credential helper, não fazer `git remote set-url` com o token — usar inline no comando).
+4. J revoga imediatamente em `github.com/settings/tokens`.
 
 Sempre lembrar J de revogar após cada push. Não pedir token "pra deixar configurado" — só o necessário pra cada operação.
+
+**Contexto do proxy do ambiente Claude (importante):** o ambiente desta skill (Claude Code/Web) usa um proxy local que só autoriza UM repo por vez (ex: só `fin.JV`). Push direto pra outros repos (jtech, goat-studio) via proxy retorna `502 Proxy error: repository not authorized`. SSH também não funciona (sem ssh client / sem chave). **Único caminho de push em ambiente Claude pra repo fora do allowlist:** PAT temporário do J via URL HTTPS, como acima.
 
 ---
 
@@ -882,16 +906,19 @@ J não quer ter que pedir toda hora pra atualizar a skill. A regra é:
 
 ## PRÓXIMO PASSO IMEDIATO J TECH
 
-Resolver bloqueio Places API:
-- **Opção A:** J cadastra cartão no Google Cloud (libera $200/mês grátis)
-- **Opção B:** alternativa gratuita (scraping próprio ou API alternativa)
+**Semana que vem (próxima sessão, J retoma em casa):**
 
-Depois:
-1. Buscador de leads funcionando
-2. Qualificador de leads com Claude API (conectar `teste_api.py` ao `buscador_leads.py`)
-3. Envio de mensagem via Evolution API ou Z-API
-4. Dashboard simples (planilha ou Notion via API)
-5. Dossiê automático pro Douglas
+1. **Aplicar os 10 fixes graves no site Jtech** na ordem listada acima ("J TECH — BUGS GRAVES PENDENTES DE FIX"). Começar SEMPRE pelo CRÍTICO 1 (race condition do defer) — sem isso, nada mais aparenta efeito.
+2. **Validar com J em monitor real** depois dos fixes — não confiar em screenshot só, pedir feedback de scroll completo.
+3. **Só depois disso voltar pra parte de produto** (Places API + prospector).
+
+**Backlog produto J Tech (depois do site limpo):**
+- Resolver bloqueio Places API: cartão no Google Cloud ($200/mês grátis) OU alternativa gratuita (scraping/API alternativa)
+- Buscador de leads funcionando
+- Qualificador de leads com Claude API (conectar `teste_api.py` ao `buscador_leads.py`)
+- Envio de mensagem via Evolution API ou Z-API
+- Dashboard simples (planilha ou Notion via API)
+- Dossiê automático pro Douglas
 
 ---
 
@@ -916,26 +943,99 @@ Depois:
 - Reformular pra falar com empresas (ou criar perfil/site separado "GOAT Mídia & Negócios")
 - Domínio próprio via Registro.br
 
-### Site J Tech (COMPLETO — 12/05/2026, sessão tarde+noite)
-- ✅ Paleta definida: Preto + Dourado/Âmbar
-- ✅ Logotipo definido: chip processador vivo/respirando + "Jtech" pequeno
-- ✅ Headline definida: "TECNOLOGIA QUE TRABALHA POR VOCÊ."
-- ✅ Repo publicado: github.com/DrXtrap/jtech → `drxtrap.github.io/jtech`
-- ✅ 5 seções no ar: Hero, O Que Fazemos (pin horizontal), Como Funciona (timeline scrub), Cases (pin horizontal), Contato
-- ✅ CTA WhatsApp grande dourado pro número `5516996214799` com mensagem pré-pronta
-- ✅ Scroll horizontal funcionando em desktop E iPhone — sem lag, com saída amortecida (buffer 70vh + pausa 0.5)
+### Site J Tech — STATUS REAL (atualizado 13/05/2026 noite)
+
+**Status:** No ar em `drxtrap.github.io/jtech`, mas com **bugs graves de UX descobertos na sessão de 13/05** depois do J testar pelo PC. Repo: `github.com/DrXtrap/jtech` (branch `main`).
+
+**O que está pronto e funcionando:**
+- ✅ Paleta: Preto (#0a0a0a) + Dourado/Âmbar (#B48C50 — `rgba(180,140,80)`)
+- ✅ Logotipo: chip processador SVG vivo/respirando + "Jtech" pequeno
+- ✅ Headline: "TECNOLOGIA QUE TRABALHA POR VOCÊ."
+- ✅ 5 seções estruturadas: Hero, O Que Fazemos (servicos pin horizontal), Como Funciona (processo timeline), Cases (cases pin horizontal com 5 cards), Contato
+- ✅ Hero com canvas de partículas dourado, mascote chip, grid background
 - ✅ SEO completo: meta description, Open Graph, Twitter Card, JSON-LD LocalBusiness, sitemap.xml, robots.txt
-- ✅ PWA básico: manifest.webmanifest, favicon.svg (chip), og-image.svg (preview WhatsApp)
-- ✅ 404.html estilizada com chip e botão de volta
+- ✅ PWA básico: manifest.webmanifest, favicon.svg (chip), og-image.svg
+- ✅ 404.html estilizada com chip
 - ✅ Header reativo (compacta ao scrollar) + link ativo no menu por seção
 - ✅ Botão voltar-ao-topo flutuante dourado
-- ✅ Performance mobile: partículas reduzidas (60→22), GPU layer, engrenagens pausam fora da viewport
-- ✅ Linguagem dos cards de Serviços mais punchy ("Seu WhatsApp atendendo cliente 24h sem você", "Leads chegando enquanto você dorme")
-- ✅ Timeline "Como funciona" evoluiu pra ScrollTrigger com scrub (linha dourada desenha conforme rola, marcos acendem)
-- ✅ Cases reescritos: 5 cards em ordem (Sites · Sistemas · Agentes IA · Automações · Prospector caso meta) com textos comerciais longos engrandecedores
-- ✅ Demo interativo no card "Sistemas": mini-painel SaaS com relógio live, 3 KPIs com variação verde, gráfico de barras SVG dos últimos 7 dias, 4 botões de ação, status bar com bolinha verde pulsante, toast notification verde flutuante. Ações clicáveis: Relatório/Cliente/Email/Sincronizar (essa última recalcula altura das barras do gráfico)
-- ⏳ Preencher cases reais quando começar a fechar contratos
-- ⏳ Domínio próprio (`.com.br`) quando começar a fechar contratos
+- ✅ Linguagem dos cards punchy (Sites/Sistemas/Agentes IA/Automações)
+- ✅ Cases: 5 cards com textos comerciais longos (Sites · Sistemas com DEMO interativo · Agentes IA · Automações · Prospector caso meta com destaque dourado)
+- ✅ Demo interativo "Sistemas": relógio live, 3 KPIs com variação verde, gráfico SVG 7 dias, 4 botões (Relatório/Cliente/Email/Sincronizar), status bar pulsante, toast verde
+- ✅ Mobile: cards encolhidos, `case-card__resumo--secundario` oculto, demo compactado
+- ✅ Performance mobile: 60→22 partículas, GPU layer, engrenagens pausadas fora da viewport
+
+**Bugs CONFIRMADOS pelo J no teste de 13/05/2026 (PC, monitor grande):**
+1. **Linha dourada do "Como Funciona" não desenha** conforme rola — fica em scaleY(0) o tempo todo
+2. **Pin horizontal dos serviços não percorre** — os 4 cards já cabem todos na tela, não tem pra onde ir
+3. **Marcos 03 (Construção) e 04 (Entrega) do processo sobrepõem o título "Tecnologia em ação" do Cases** durante a transição entre seções
+
+**Fixes que apliquei no commit `496a30c` (13/05/2026, push via PAT):**
+- CSS: `z-index` por seção (`.servicos:1, .processo:2, .cases:3`) + `background-color` sólido em `.processo` e `.cases__viewport`/`.cases__pin-wrapper`
+- CSS: aumentei card de serviço de `clamp(320px, 32vw, 460px)` → `clamp(380px, 34vw, 540px)`, gap 32→40px, padding lateral `64px → 10vw`
+- JS: `gsap.fromTo(linha, {scaleY:0}, {scaleY:1, scrub:true, start:'top 75%', end:'bottom 60%', invalidateOnRefresh:true})` (era `gsap.to` com `scrub:0.6` e `start:'top center'`)
+
+**Esses 3 fixes NÃO resolveram nada na visão do J.** Causa raiz descoberta depois (não corrigida ainda — bateu limite semanal): ver lista abaixo.
+
+### J TECH — BUGS GRAVES PENDENTES DE FIX (próxima sessão)
+
+Análise técnica completa rodada em 13/05/2026 noite. Lista priorizada do que precisa ser feito (em ordem):
+
+**CRÍTICO — sem isso nada mais importa:**
+
+1. **`<script defer>` + `iniciar()` race condition** (script.js:568-572 e index.html:714-717)
+   - Os 4 scripts (Lenis, GSAP, ScrollTrigger, script.js) têm `defer`. Quando script.js roda, `document.readyState === 'interactive'`, cai no `else iniciar()`. Em algumas condições Lenis/GSAP não estão prontos, e o código sai silenciosamente pelos `typeof === 'undefined'`. **É por isso que os fixes não aparentavam mudança nenhuma.**
+   - **Fix:** trocar `else iniciar()` por `window.addEventListener('load', iniciar)`.
+
+2. **`gsap.registerPlugin(ScrollTrigger)` só dentro de `iniciarScrollHorizontal()`** (script.js:199)
+   - Se essa função sair com early return, timeline e pin de cases rodam sem plugin.
+   - **Fix:** mover pro topo do `iniciar()`.
+
+3. **Sem `ScrollTrigger.refresh()` depois das fontes carregarem**
+   - `pista.scrollWidth` mede errado antes da Bebas Neue baixar → distância do pin fica congelada.
+   - **Fix:** `document.fonts.ready.then(() => ScrollTrigger.refresh())` no fim do iniciar.
+
+4. **`.processo__marco` z-index 2 + `box-shadow 0 0 0 6px` + `0 0 32px` vaza pra fora do `.processo`** (style.css:898-911)
+   - Mesmo com `.cases z-index:3`, o box-shadow do marco escapa do stacking context da seção.
+   - **Fix:** `isolation: isolate` no `.processo` + reduzir box-shadow.
+
+**GRAVES — sensação geral de "tá horrível":**
+
+5. **Cards de serviço cortados verticalmente em 1080p** (style.css:502)
+   - `height: clamp(440px, 64vh, 580px)` — 64vh em 1080p = 691px, mas o espaço útil (depois do cabeçalho 200px do `.servicos__viewport`) é só ~700px. Cards saem cortados.
+   - **Fix:** `height: clamp(380px, 54vh, 520px)`.
+
+6. **Card demo dos cases (880px) puxa altura da pista** (style.css:1124)
+   - Outros cards (~600px) ficam estranhos com espaço vazio porque `align-items: stretch`.
+   - **Fix:** `max-height: 100%; overflow-y: auto` no `--demo` ou esconder `--secundario` também nesse card.
+
+7. **Pin do cases tem ~2884px de scroll em 1080p** (5 cards de 720+880px na pista)
+   - Sensação de eternidade rolando.
+   - **Fix:** reduzir card padrão de 720 pra 600px ou cortar 1 case.
+
+8. **`scroll-behavior: smooth` no CSS conflita com Lenis** (style.css:43)
+   - Pulo brusco em anchor links.
+   - **Fix:** remover do CSS.
+
+9. **`setInterval` do relógio do demo nunca limpa** (script.js:417)
+   - Roda mesmo fora da viewport. Junto com particles + tweens infinitos = CPU alta.
+   - **Fix:** wrapper em IntersectionObserver.
+
+10. **Resize do canvas sem debounce** (script.js:176-179)
+    - Trava DevTools no resize.
+    - **Fix:** debounce 150ms.
+
+**MÉDIOS:**
+
+11. Hero sem `id` — IntersectionObserver de header nunca marca hero como ativo
+12. Indicador "arraste ou role" mente no desktop (pin com scrub não permite arrastar) — texto "role para ver"
+13. `case-card__cta` definido em CSS mas não existe no HTML — cases sem CTA "quero esse"
+14. `prefers-reduced-motion` no CSS não desliga GSAP/Lenis/particles — só animações CSS
+15. `.servicos__indicador-horizontal` aria-live "polite" duplicado com toast — anuncia tudo 2x
+16. `cases__cabecalho` tem `max-width: 1280px` mas `cases__pista` não — desalinhamento visual
+
+**Pendente comercial (não-técnico):**
+- ⏳ Preencher cases reais quando fechar contratos
+- ⏳ Domínio próprio `.com.br` quando começar a fechar contratos
 - ⏳ Analytics (Plausible/GA4) quando começar a investir em tráfego
 
 **ESTRUTURA DOS CARDS DE CASES (5 cards horizontal):**
