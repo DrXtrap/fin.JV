@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="theme-color" content="#1a3a6b" />
+  <title>Fin.JV</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════
+       TELA DE AUTENTICAÇÃO
+       ════════════════════════════════════════════ -->
+  <div id="screen-auth" class="auth-screen">
+
+    <!-- LOGIN -->
+    <div id="auth-login" class="auth-box">
+      <div class="auth-brand">Fin<span>.</span>JV</div>
+      <p class="auth-sub">Controle Financeiro Pessoal</p>
+
+      <div class="field-group">
+        <label for="login-user">Usuário</label>
+        <input type="text" id="login-user" placeholder="Seu usuário" autocomplete="username" />
+      </div>
+
+      <div class="field-group">
+        <label for="login-pass">Senha</label>
+        <input type="password" id="login-pass" placeholder="Sua senha" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') handleLogin()" />
+      </div>
+
+      <div id="login-error" class="auth-error"></div>
+
+      <button class="btn primary full" onclick="handleLogin()">Entrar</button>
+      <button class="btn ghost full" onclick="showRegister()">Criar nova conta</button>
+    </div>
+
+    <!-- REGISTRO -->
+    <div id="auth-register" class="auth-box" style="display:none;">
+      <div class="auth-brand">Fin<span>.</span>JV</div>
+      <p class="auth-sub">Criar nova conta</p>
+
+      <div class="field-group">
+        <label for="reg-user">Usuário</label>
+        <input type="text" id="reg-user" placeholder="Escolha um nome de usuário" />
+      </div>
+
+      <div class="field-group">
+        <label for="reg-pass">Senha</label>
+        <input type="password" id="reg-pass" placeholder="Mínimo 6 caracteres"
+               onkeydown="if(event.key==='Enter') handleRegister()" />
+      </div>
+
+      <div id="reg-error" class="auth-error"></div>
+
+      <button class="btn primary full" onclick="handleRegister()">Criar Conta</button>
+      <button class="btn ghost full" onclick="showLogin()">Já tenho conta — Entrar</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       APP PRINCIPAL
+       ════════════════════════════════════════════ -->
+  <div id="screen-app" style="display:none;">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="header-brand">Fin<span>.</span>JV</div>
+      <div class="header-center">
+        <select id="global-month" class="month-sel" onchange="onMonthChange()"></select>
+      </div>
+      <div class="header-right">
+        <div class="user-chip" id="user-chip"></div>
+        <button class="icon-btn" onclick="handleLogout()" title="Sair">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="app-main">
+
+      <!-- ── DASHBOARD ── -->
+      <div id="s-dashboard" class="section active">
+        <div class="metrics-row" id="dash-metrics"></div>
+
+        <div class="card">
+          <div class="card-title">
+            <i class="fas fa-file-invoice-dollar"></i> Contas Fixas do Mês
+          </div>
+          <div id="dash-fixas"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <i class="fas fa-clock-rotate-left"></i> Últimos Lançamentos
+          </div>
+          <ul class="tx-list" id="dash-recent"></ul>
+        </div>
+      </div>
+
+      <!-- ── RECEITAS ── -->
+      <div id="s-receitas" class="section">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-arrow-up"></i> Lançar Receita</div>
+          <div class="form-grid">
+            <div class="field-group span2">
+              <label>Descrição</label>
+              <input type="text" id="rec-desc" placeholder="Ex: Salário, Freela, Venda..." />
+            </div>
+            <div class="field-group">
+              <label>Valor (R$)</label>
+              <input type="number" id="rec-val" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Pessoa</label>
+              <input type="text" id="rec-pessoa" placeholder="Nome" />
+            </div>
+            <div class="field-group">
+              <label>Categoria</label>
+              <select id="rec-cat">
+                <option>Salário</option>
+                <option>Ajuda de custo</option>
+                <option>Vale alimentação</option>
+                <option>Adicional</option>
+                <option>Freela</option>
+                <option>Outros</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Data</label>
+              <input type="date" id="rec-date" />
+            </div>
+          </div>
+          <button class="btn primary" onclick="addReceita()">
+            <i class="fas fa-plus"></i> Adicionar Receita
+          </button>
+        </div>
+
+        <div class="metrics-row" id="rec-metrics"></div>
+
+        <div class="card">
+          <div class="card-title">Histórico de Receitas</div>
+          <ul class="tx-list" id="rec-list"></ul>
+        </div>
+      </div>
+
+      <!-- ── FIXAS ── -->
+      <div id="s-fixas" class="section">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-check-double"></i> Marcar como Pago</div>
+          <div id="fixas-check"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><i class="fas fa-gear"></i> Gerenciar Contas Fixas</div>
+          <div class="form-grid">
+            <div class="field-group span2">
+              <label>Nome da conta</label>
+              <input type="text" id="fix-nome" placeholder="Ex: Aluguel, Internet, Plano de saúde..." />
+            </div>
+            <div class="field-group">
+              <label>Valor (R$)</label>
+              <input type="number" id="fix-val" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Início da dívida</label>
+              <input type="month" id="fix-inicio" />
+            </div>
+          </div>
+          <button class="btn primary" onclick="addFixa()">
+            <i class="fas fa-plus"></i> Adicionar Conta Fixa
+          </button>
+          <hr class="divider" />
+          <ul class="tx-list" id="fix-list"></ul>
+        </div>
+      </div>
+
+      <!-- ── VARIÁVEIS ── -->
+      <div id="s-variaveis" class="section">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-shopping-cart"></i> Novo Gasto Variável</div>
+          <div class="form-grid">
+            <div class="field-group span2">
+              <label>Descrição</label>
+              <input type="text" id="var-desc" placeholder="Ex: Supermercado, Farmácia, Gasolina..." />
+            </div>
+            <div class="field-group">
+              <label>Valor (R$)</label>
+              <input type="number" id="var-val" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Categoria</label>
+              <select id="var-cat">
+                <option>Mercado</option>
+                <option>Saúde</option>
+                <option>Combustível</option>
+                <option>Farmácia</option>
+                <option>Filho</option>
+                <option>Restaurante</option>
+                <option>Lazer</option>
+                <option>Vestuário</option>
+                <option>Outros</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label>Data</label>
+              <input type="date" id="var-date" />
+            </div>
+          </div>
+          <button class="btn primary" onclick="addVar()">
+            <i class="fas fa-plus"></i> Adicionar Gasto
+          </button>
+        </div>
+
+        <div class="metric-solo">
+          <div class="mlabel">Total variável este mês</div>
+          <div class="mval red" id="var-total">R$ 0,00</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Histórico de Gastos</div>
+          <ul class="tx-list" id="var-list"></ul>
+        </div>
+      </div>
+
+      <!-- ── PONTUAIS / DÍVIDAS ── -->
+      <div id="s-pontuais" class="section">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-exclamation-circle"></i> Nova Dívida / Gasto Pontual</div>
+          <div class="form-grid">
+            <div class="field-group span2">
+              <label>Descrição</label>
+              <input type="text" id="pont-desc" placeholder="Ex: Conserto do carro, Médico, Empréstimo..." />
+            </div>
+            <div class="field-group">
+              <label>Valor mínimo (R$)</label>
+              <input type="number" id="pont-val-min" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Valor máximo (R$) — opcional</label>
+              <input type="number" id="pont-val-max" placeholder="Se o valor for incerto" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Status</label>
+              <select id="pont-status">
+                <option value="pendente">Pendente</option>
+                <option value="pago">Pago</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn primary" onclick="addPontual()">
+            <i class="fas fa-plus"></i> Adicionar
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Lista de Dívidas e Gastos</div>
+          <div id="pont-list"></div>
+        </div>
+      </div>
+
+      <!-- ── METAS ── -->
+      <div id="s-metas" class="section">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-bullseye"></i> Nova Meta Financeira</div>
+          <div class="form-grid">
+            <div class="field-group span2">
+              <label>Nome da meta</label>
+              <input type="text" id="goal-name" placeholder="Ex: Reserva de emergência, Viagem, Carro..." />
+            </div>
+            <div class="field-group">
+              <label>Valor total (R$)</label>
+              <input type="number" id="goal-total" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Já guardado (R$)</label>
+              <input type="number" id="goal-saved" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Prazo (opcional)</label>
+              <input type="date" id="goal-date" />
+            </div>
+          </div>
+          <button class="btn primary" onclick="addGoal()">
+            <i class="fas fa-plus"></i> Adicionar Meta
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Metas Ativas</div>
+          <div id="goals-list"></div>
+        </div>
+      </div>
+
+      <!-- ── ROLETA (admin only) ── -->
+      <div id="s-roleta" class="section">
+        <div class="rol-stats-grid" id="rol-stats"></div>
+
+        <div class="card">
+          <div class="card-title"><i class="fas fa-dice"></i> Registrar Sessão</div>
+          <div class="form-grid">
+            <div class="field-group">
+              <label>Data</label>
+              <input type="date" id="rol-date" />
+            </div>
+            <div class="field-group">
+              <label>Entrada (R$)</label>
+              <input type="number" id="rol-entrada" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Saída (R$)</label>
+              <input type="number" id="rol-saida" placeholder="0,00" min="0" step="0.01" />
+            </div>
+            <div class="field-group">
+              <label>Resultado da meta</label>
+              <select id="rol-meta">
+                <option value="bateu">Meta bateu</option>
+                <option value="nao-bateu">Não bateu</option>
+                <option value="stop">Stop loss</option>
+              </select>
+            </div>
+            <div class="field-group span2">
+              <label>Observações (opcional)</label>
+              <input type="text" id="rol-obs" placeholder="Notas sobre a sessão..." />
+            </div>
+          </div>
+          <button class="btn primary" onclick="addRoleta()">
+            <i class="fas fa-plus"></i> Registrar Sessão
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Histórico de Sessões</div>
+          <ul class="tx-list" id="rol-list"></ul>
+        </div>
+      </div>
+
+      <!-- ── RESUMO PARA IA ── -->
+      <div id="s-resumo" class="section">
+        <div class="card">
+          <div class="card-title"><i class="fas fa-robot"></i> Resumo para Consultoria com IA</div>
+          <p class="section-hint">
+            Gere um resumo completo da sua situação financeira. Copie o texto e cole em uma IA para receber
+            uma análise e consultoria personalizadas.
+          </p>
+          <button class="btn primary full" onclick="gerarResumo()">
+            <i class="fas fa-file-lines"></i> Gerar Resumo Financeiro
+          </button>
+          <div id="resumo-box" style="display:none; margin-top:16px;">
+            <pre class="summary-box" id="resumo-text"></pre>
+            <button class="btn primary full" onclick="copiarResumo()" id="copy-btn-text" style="margin-top:12px;">
+              <i class="fas fa-copy"></i> Copiar Resumo
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- NAV INFERIOR -->
+    <nav class="nav-bar">
+      <button class="nav-item" data-section="dashboard" onclick="showSection('dashboard')">
+        <i class="fas fa-chart-pie"></i><span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-section="receitas" onclick="showSection('receitas')">
+        <i class="fas fa-arrow-up"></i><span>Receitas</span>
+      </button>
+      <button class="nav-item" data-section="fixas" onclick="showSection('fixas')">
+        <i class="fas fa-file-invoice-dollar"></i><span>Fixas</span>
+      </button>
+      <button class="nav-item" data-section="variaveis" onclick="showSection('variaveis')">
+        <i class="fas fa-shopping-cart"></i><span>Variáveis</span>
+      </button>
+      <button class="nav-item" data-section="pontuais" onclick="showSection('pontuais')">
+        <i class="fas fa-exclamation-circle"></i><span>Dívidas</span>
+      </button>
+      <button class="nav-item" data-section="metas" onclick="showSection('metas')">
+        <i class="fas fa-bullseye"></i><span>Metas</span>
+      </button>
+      <button class="nav-item nav-admin" data-section="roleta" id="nav-roleta"
+              onclick="showSection('roleta')" style="display:none;">
+        <i class="fas fa-dice"></i><span>Roleta</span>
+      </button>
+      <button class="nav-item" data-section="resumo" onclick="showSection('resumo')">
+        <i class="fas fa-robot"></i><span>IA</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- Firebase SDK (compat — funciona sem bundler) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
