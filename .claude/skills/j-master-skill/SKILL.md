@@ -828,6 +828,10 @@ git push
 
 27. **`document.readyState === 'loading'` é a checagem ERRADA pra módulos que dependem de scripts externos** — só testa se o HTML acabou de parsear, não se os outros `<script>` já rodaram. Para scripts deferidos que dependem de bibliotecas externas, usar `window.addEventListener('load', ...)` que dispara depois de tudo (incluindo CSS/imagens, mas é mais seguro).
 
+28. **TROCAR PERSISTÊNCIA DE FIREBASE → LOCALSTORAGE QUEBRA SYNC ENTRE DISPOSITIVOS** (descoberto em 20/05/2026 ao reescrever o fin.JV) — J construiu o fin.JV deliberadamente com Firebase pra sincronizar dados entre celular dele, celular da esposa e PC. Quando ele cola uma spec nova mencionando "LocalStorage", **NÃO é pra abandonar o sync** — é só linguagem de spec genérica. A pergunta certa é: "você quer manter sync entre dispositivos?" Resposta é sempre **sim** pra fin.JV. Lição: arquitetura de produto > literalidade da spec. Quando errei isso, o app continuou funcional mas perdeu o ponto central do produto — J reagiu com raiva justificada porque trabalhou meses pra ter sync e eu joguei fora numa sessão.
+
+29. **Não pushar fixes "baseados em análise técnica antiga" sem confirmar com J** (lição da sessão de 20/05/2026) — mesmo com análise documentada na SKILL apontando 4 bugs críticos no jtech, eu apliquei fixes localmente e quase pushei sem confirmar se os sintomas que J vê AGORA continuam batendo. Análise envelhece — confiar nela cega = ignorar contexto novo. Sempre pergunte antes de mexer: "esses 3 bugs ainda são os que você vê?"
+
 ---
 
 ## GIT VIA PAT TEMPORÁRIO (FLUXO QUE J USA)
@@ -878,6 +882,18 @@ Sempre lembrar J de revogar após cada push. Não pedir token "pra deixar config
 15. **NUNCA mexer no git sem permissão explícita** — não comita, não dá push, não cria branch, não cria pastas no remote sem J liberar. Pode codar localmente, pode propor mudanças, mas qualquer operação git destrutiva ou pública precisa de luz verde. Workflow padrão: **codo → mostro → J aprova → eu pusho**
 16. **Toda API/serviço usado tem que ser GRATUITO** — nada pago. Sem Stripe, sem Vercel pago, sem Cloudflare premium. Se precisar de pago, **avisa antes e justifica** — J decide.
 
+17. **NUNCA trocar arquitetura crítica sem perguntar** (descoberto em 20/05/2026 ao quebrar o fin.JV) — persistência (LocalStorage vs Firebase), auth, framework, estrutura de dados, fluxo de sync entre dispositivos. Mesmo que J cole uma spec dizendo "use X", se o sistema atual usa Y e Y é central pro produto (sync entre celulares do casal, por exemplo), **pare e pergunte**. Especificação solta é briefing, não ordem cega. Quando J reclamar de UM sistema que tá funcionando, perguntar "o que mudar?" — não reescrever do zero.
+
+18. **WORKFLOW DE VALIDAÇÃO POR ARQUIVOS COMPLETOS** (firmado em 20/05/2026, novo padrão após o erro do fin.JV) — quando J pedir correção em projeto dele:
+    1. J cola os arquivos inteiros do projeto no chat
+    2. Eu devolvo os arquivos inteiros corrigidos no chat
+    3. J cola no VSCode local (ex: `E:\CODE\jtech-local\`), testa com Live Server
+    4. Só depois de validado: J cria PAT temporário pra eu pushar (ou pusha ele mesmo)
+    - **Nunca pushar antes de J testar.** Push direto pelo Claude vira "código não validado em produção" — risco de quebrar o site que tá no ar.
+    - Mesmo que eu tenha clone local em `/home/user/<projeto>/` e PAT em mãos, **só pusho com luz verde explícita pós-teste**.
+
+19. **Antes de aplicar fixes técnicos numa volta de sessão, confirmar se sintomas ainda batem** — análises ficam em SKILL/transcripts, mas o que o usuário VÊ na tela pode ter mudado. Ele pode ter feito edit manual, o site pode ter rebuildado, cache pode ter quebrado de outro jeito. Pergunte "o que você tá vendo de errado AGORA" antes de mexer.
+
 ---
 
 ## PROATIVIDADE (regra mais importante pro J)
@@ -906,19 +922,58 @@ J não quer ter que pedir toda hora pra atualizar a skill. A regra é:
 
 ## PRÓXIMO PASSO IMEDIATO J TECH
 
-**Semana que vem (próxima sessão, J retoma em casa):**
+**Status (20/05/2026 noite):** J está há 2 semanas tentando finalizar o site J Tech. **Mobile (iPhone) está perfeito.** Desktop continua quebrado pelos mesmos 3 bugs reportados em 13/05.
 
-1. **Aplicar os 10 fixes graves no site Jtech** na ordem listada acima ("J TECH — BUGS GRAVES PENDENTES DE FIX"). Começar SEMPRE pelo CRÍTICO 1 (race condition do defer) — sem isso, nada mais aparenta efeito.
-2. **Validar com J em monitor real** depois dos fixes — não confiar em screenshot só, pedir feedback de scroll completo.
-3. **Só depois disso voltar pra parte de produto** (Places API + prospector).
+**Commit local `a842b4d` em `/home/user/jtech/main`** — pronto, NÃO pushado, aguardando validação pelo workflow novo:
+- `iniciar()` movido pra `window.addEventListener('load')` (era `else iniciar()` após DOMContentLoaded)
+- `gsap.registerPlugin(ScrollTrigger)` movido pro topo do `iniciar()`
+- `document.fonts.ready.then(ScrollTrigger.refresh)` adicionado no fim do `iniciar()`
+- `.processo` agora tem `isolation: isolate` + `overflow: hidden` + box-shadow do marco reduzido (0 0 0 4px + 16px de glow)
+- `scroll-behavior: smooth` removido do `html` (conflito com Lenis)
 
-**Backlog produto J Tech (depois do site limpo):**
-- Resolver bloqueio Places API: cartão no Google Cloud ($200/mês grátis) OU alternativa gratuita (scraping/API alternativa)
+**Próximo movimento (J vai conduzir):**
+1. J chega em casa → cola os 3 arquivos do projeto Jtech no chat (`index.html`, `style.css`, `script.js`)
+2. Eu devolvo os 3 arquivos completos corrigidos no chat
+3. J cola no VSCode local, abre com Live Server, **testa os 3 bugs:**
+   - Linha dourada desenhando conforme rola?
+   - Os 4 cards de serviço puxam horizontal (não cabem mais na tela)?
+   - Marcos 03/04 não vazam por cima do título "Tecnologia em ação"?
+4. Se validar → J cria PAT temporário → eu pusho
+
+**Backlog produto J Tech (depois do site ficar redondo):**
+- Resolver bloqueio Places API: cartão no Google Cloud ($200/mês grátis) OU alternativa gratuita
 - Buscador de leads funcionando
 - Qualificador de leads com Claude API (conectar `teste_api.py` ao `buscador_leads.py`)
 - Envio de mensagem via Evolution API ou Z-API
 - Dashboard simples (planilha ou Notion via API)
 - Dossiê automático pro Douglas
+
+---
+
+## PROJETO FIN.JV — STATUS (PAUSADO)
+
+**Status (20/05/2026):** Pausado por decisão do J — prioridade absoluta é finalizar o jtech antes.
+
+**Histórico do que aconteceu:**
+- Sessão de 19/05: J pediu adicionar "data de início" nas contas fixas (pra mostrar meses atrasados na frente do nome). Apliquei OK no commit `496a30c` (Firebase), funcionou.
+- Sessão de 19/05 mais tarde: J pediu correção da credencial admin hardcoded no `auth.js`. Apliquei OK — role agora vem do Firestore `userProfiles/{uid}.role`. A conta JV continua admin porque o profile já estava marcado no Firestore.
+- Sessão de 20/05 manhã: J colou uma spec longa de redesign do fin.JV (paleta nova, dashboard rico, parcelamentos, módulos novos). A spec mencionava "LocalStorage" no parágrafo de arquitetura. **Eu segui literal e reescrevi o app inteiro abandonando o Firebase.** ERRO GRAVE — J ficou puto porque trabalhou meses pra ter sync entre celular dele, celular da Vitória e PC. Disse: "destruiu tudo como se n tivesse feito parte da construção do app".
+- J mandou **REVERTER tudo** pro commit `496a30c` (versão Firebase funcionando com data de início nas fixas).
+- Está congelado nesse estado. Ele vai voltar quando o jtech estiver no ar.
+
+**Quando voltar pro fin.JV:**
+1. Confirmar que `496a30c` ainda é a versão no ar
+2. **NUNCA mexer em Firebase/sync sem confirmar** (ver REGRA DE OURO 17)
+3. Pegar a spec longa de redesign que J colou (paleta nova, dashboard rico, parcelamentos, etc.) e **aplicar UM MÓDULO POR VEZ**, mantendo Firebase como persistência:
+   - Paleta nova (#0d0f12, #161a1f, gold #e2b13c) + fontes (Inter + Space Grotesk)
+   - Categorias novas em Receitas (Salário / Freela J Tech / GOAT Studio / Outros)
+   - Categorias novas em Gastos + forma de pagamento (PIX, Débito, Crédito)
+   - Cartão de crédito → vai pra "Fatura Cartão", não dedupe direto
+   - Parcelamentos: replica gasto em N meses futuros via mKey
+   - Dashboard rico: faturamento bruto + projeção saídas + saldo livre + origem CLT/J Tech/GOAT + centro de custo Bebê/Saúde + projeção 6 meses
+   - Saldo devedor global na aba Dívidas
+   - "Destinar valor sobrando" nas metas
+4. Cada módulo: **arquivos completos no chat → J testa local → push só depois**
 
 ---
 
